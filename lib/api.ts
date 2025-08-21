@@ -1,3 +1,4 @@
+// api.ts
 import type {
   ApiResponse,
   LoginRequest,
@@ -279,7 +280,22 @@ export const fileApi = {
 
       const data = await response.json();
       console.debug('Upload API Response:', data);
-      return { success: true, data };
+
+      const uploadResult = {
+        file_id: data.file_id,
+        filename: request.file.name,
+        row_count: 0, // Assuming backend does not provide; update if it does
+        upload_date: new Date().toISOString(),
+      };
+
+      let history = JSON.parse(localStorage.getItem('upload_history') || '[]');
+      history.push({
+        ...uploadResult,
+        type: request.type === 'rx_report' ? 'rx-report' : 'purchase-history',
+      });
+      localStorage.setItem('upload_history', JSON.stringify(history));
+
+      return { success: true, data: uploadResult };
     } catch (err) {
       console.error('File Upload API Error (Catch):', err);
       return {
@@ -290,8 +306,14 @@ export const fileApi = {
   },
 
   getUploadHistory: async (): Promise<ApiResponse<{ file_id: string; filename: string; type: string; upload_date: string; row_count: number }[]>> => {
-    // TODO: Implement when GET endpoint is available
-    return { success: true, data: [] };
+    try {
+      const historyStr = localStorage.getItem('upload_history');
+      const history = historyStr ? JSON.parse(historyStr) : [];
+      return { success: true, data: history };
+    } catch (err) {
+      console.error('Get Upload History Error:', err);
+      return { success: true, data: [] };
+    }
   },
 };
 
@@ -332,5 +354,28 @@ export const reconciliationApi = {
     // TODO: Replace with actual API call
     await new Promise((resolve) => setTimeout(resolve, 500));
     return { success: true, data: MOCK_DAILY_TRENDS.slice(0, days) };
+  },
+
+  compareFiles: async (rxFileId: string, purchaseFileId: string): Promise<ApiResponse<ReconciliationResults>> => {
+    try {
+      const response = await fetch(`${BASE_URL}/compare_files?file_id_1=${rxFileId}&file_id_2=${purchaseFileId}`, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Compare failed: ${response.statusText} (${response.status})`);
+      }
+
+      const data = await response.json();
+      return { success: true, data };
+    } catch (err) {
+      console.error('Compare Files API Error:', err);
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : 'File comparison failed.',
+      };
+    }
   },
 };

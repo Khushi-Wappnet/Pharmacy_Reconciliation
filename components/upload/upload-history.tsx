@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FileText, Download, Trash2, Calendar } from "lucide-react";
-import { fileApi } from "@/lib/api";
+import { fileApi, reconciliationApi } from "@/lib/api";
 
 interface UploadRecord {
   file_id: string;
@@ -53,15 +53,37 @@ export function UploadHistory() {
   }, [router]);
 
   const deleteUpload = async (file_id: string) => {
-    // TODO: Implement delete API call when backend endpoint is available
-    console.log(`Delete file with ID: ${file_id}`);
-    setUploads((prev) => prev.filter((upload) => upload.file_id !== file_id));
+    // Since no backend delete, just remove from local
+    const newUploads = uploads.filter((upload) => upload.file_id !== file_id);
+    localStorage.setItem('upload_history', JSON.stringify(newUploads));
+    setUploads(newUploads);
   };
 
   const downloadUpload = async (file_id: string, filename: string) => {
     // TODO: Implement download API call when backend endpoint is available
     console.log(`Download file with ID: ${file_id}`);
     alert(`Download not implemented yet for file: ${filename}`);
+  };
+
+  const handleCompare = async () => {
+    // Get latest rx-report and purchase-history
+    const rxUploads = uploads.filter(u => u.type === 'rx-report');
+    const purchaseUploads = uploads.filter(u => u.type === 'purchase-history');
+    const latestRx = rxUploads[0];
+    const latestPurchase = purchaseUploads[0];
+
+    if (!latestRx || !latestPurchase) {
+      alert('Please upload both an Rx Report and a Purchase History file before comparing.');
+      return;
+    }
+
+    const response = await reconciliationApi.compareFiles(latestRx.file_id, latestPurchase.file_id);
+    if (response.success) {
+      console.log('Comparison results:', response.data);
+      alert('Files compared successfully! Check console for results.');
+    } else {
+      alert(`Comparison failed: ${response.error}`);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -102,6 +124,7 @@ export function UploadHistory() {
         <CardDescription>Recently uploaded files and their status</CardDescription>
       </CardHeader>
       <CardContent>
+        <Button onClick={handleCompare} className="mb-6">Compare Both Files</Button>
         {error && <p className="text-red-500 mb-4">{error}</p>}
         {uploads.length === 0 ? (
           <div className="text-center py-8">
