@@ -356,12 +356,15 @@ export const reconciliationApi = {
     return { success: true, data: MOCK_DAILY_TRENDS.slice(0, days) };
   },
 
-  compareFiles: async (rxFileId: string, purchaseFileId: string): Promise<ApiResponse<ReconciliationResults>> => {
+  compareFiles: async (rxFileId: string, purchaseFileId: string, page: number = 1, pageSize: number = 10): Promise<ApiResponse<any>> => {
     try {
-      const response = await fetch(`${BASE_URL}/compare_files?file_id_1=${rxFileId}&file_id_2=${purchaseFileId}`, {
-        method: 'GET',
-        headers: getHeaders(),
-      });
+      const response = await fetch(
+        `${BASE_URL}/compare_files?file_id_1=${encodeURIComponent(rxFileId)}&file_id_2=${encodeURIComponent(purchaseFileId)}&page=${encodeURIComponent(String(page))}&page_size=${encodeURIComponent(String(pageSize))}`,
+        {
+          method: 'GET',
+          headers: getHeaders(),
+        },
+      );
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
